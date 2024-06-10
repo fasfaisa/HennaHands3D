@@ -1,0 +1,204 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Mehendi Design Application</title>
+  <style>
+    body {
+      margin: 0;
+      overflow: hidden;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      height: 100vh;
+      background-color: #ffffff;
+    }
+    #container {
+      width: 100%;
+      height: 100%;
+      position: relative;
+    }
+    #design-selector {
+      position: absolute;
+      top: 10px;
+      left: 10px;
+      z-index: 100;
+      background: white;
+      padding: 10px;
+      border-radius: 5px;
+      box-shadow: 0 0 10px rgba(0, 0, 0, 0.5);
+    }
+    #sizeSlider {
+      margin-top: 10px;
+      width: 100%;
+    }
+  </style>
+</head>
+<body>
+  <div id="container"></div>
+  <div id="design-selector">
+    <label for="objectSelector">Select Part:</label>
+    <select id="objectSelector">
+      <option value="Hand001">Hand 1</option>
+      <option value="Hand002">Hand 2</option>
+      <option value="Hand003">Hand 3</option>
+      <option value="Hand004">Hand 4</option>
+      <option value="Hand005">Hand 5</option>
+      <option value="Hand006">Hand 6</option>
+      <option value="Hand007">Hand 7</option>
+      <option value="Hand008">Hand 8</option>
+      <option value="Hand009">Hand 9</option>
+      <option value="Hand010">Hand 10</option>
+      <option value="Hand011">Hand 11</option>
+      <option value="Hand012">Hand 12</option>
+    </select>
+    <input type="file" id="uploadDesign" accept="image/*" />
+    <input type="range" id="sizeSlider" min="0.5" max="1.2" step="0.01" value="1.0" />
+  </div>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/GLTFLoader.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+  <script>
+    let scene, camera, renderer, controls;
+    let handModel;
+    const objects = {};
+    const maxScaleFactor = 75;
+    let currentScaleFactor = 1.0;
+
+    init();
+    animate();
+
+    function init() {
+      scene = new THREE.Scene();
+
+      camera = new THREE.PerspectiveCamera(
+        75,
+        window.innerWidth / window.innerHeight,
+        0.1,
+        1000
+      );
+      camera.position.set(0, 0, 40);
+
+      renderer = new THREE.WebGLRenderer({ antialias: true });
+      renderer.setSize(window.innerWidth, window.innerHeight);
+      renderer.setClearColor(0xffffff);
+      document.getElementById("container").appendChild(renderer.domElement);
+
+      controls = new THREE.OrbitControls(camera, renderer.domElement);
+
+      // Add multiple light sources
+      const frontLight = new THREE.DirectionalLight(0xffffff, 1.5);
+      frontLight.position.set(0, 0, 10).normalize();
+      scene.add(frontLight);
+
+      const backLight1 = new THREE.DirectionalLight(0xffffff, 1);
+      backLight1.position.set(5, 5, -5).normalize();
+      scene.add(backLight1);
+
+      const backLight2 = new THREE.DirectionalLight(0xffffff, 1);
+      backLight2.position.set(-5, 5, -5).normalize();
+      scene.add(backLight2);
+
+      const ambientLight = new THREE.AmbientLight(0x404040, 1);
+      scene.add(ambientLight);
+
+      loadHandModel("handModel3.glb");
+
+      window.addEventListener("resize", onWindowResize, false);
+      document.getElementById("uploadDesign").addEventListener("change", onDesignUpload, false);
+      document.getElementById("sizeSlider").addEventListener("input", onSizeChange, false);
+    }
+
+    function loadHandModel(url) {
+      const loader = new THREE.GLTFLoader();
+      loader.load(
+        url,
+        function (gltf) {
+          handModel = gltf.scene;
+          handModel.scale.set(maxScaleFactor * currentScaleFactor, maxScaleFactor * currentScaleFactor, maxScaleFactor * currentScaleFactor);
+
+          // Set a darker skin color with increased emissive property
+          const material = new THREE.MeshStandardMaterial({ color: 0x8B4513, emissive: 0x5A3E2A, side: THREE.DoubleSide, emissiveIntensity: 0.3 });
+          handModel.traverse(function (child) {
+            if (child.isMesh) {
+              child.material = material;
+              objects[child.name] = child;
+              console.log(`Stored reference to ${child.name}`);
+            }
+          });
+
+          scene.add(handModel);
+          handModel.position.y = -20;
+        },
+        function (xhr) {
+          console.log((xhr.loaded / xhr.total * 100) + '% loaded');
+        },
+        function (error) {
+          console.error('Error loading the model:', error);
+          alert('Failed to load the model. Please check the console for details.');
+        }
+      );
+    }
+
+    function onWindowResize() {
+      camera.aspect = window.innerWidth / window.innerHeight;
+      camera.updateProjectionMatrix();
+      renderer.setSize(window.innerWidth, window.innerHeight);
+    }
+
+    function resizeImage(image, callback) {
+      const canvas = document.createElement('canvas');
+      const ctx = canvas.getContext('2d');
+      const maxWidth = image.width / 2;
+      const maxHeight = image.height / 2;
+      canvas.width = maxWidth;
+      canvas.height = maxHeight;
+      ctx.drawImage(image, 0, 0, maxWidth, maxHeight);
+      canvas.toBlob(callback, 'image/png');
+    }
+
+    function onDesignUpload(event) {
+      const selectedPart = document.getElementById("objectSelector").value;
+      const file = event.target.files[0];
+
+      if (file && objects[selectedPart]) {
+        const reader = new FileReader();
+        reader.onload = function (e) {
+          const img = new Image();
+          img.onload = function () {
+            resizeImage(img, function (blob) {
+              const url = URL.createObjectURL(blob);
+              const texture = new THREE.TextureLoader().load(url, function (texture) {
+                const material = objects[selectedPart].material.clone();
+
+                texture.wrapS = THREE.ClampToEdgeWrapping; // Adjust the texture wrapping
+                texture.wrapT = THREE.ClampToEdgeWrapping;
+                material.map = texture;
+                material.needsUpdate = true;
+
+                objects[selectedPart].material = material;
+              });
+            });
+          };
+          img.src = e.target.result;
+        };
+        reader.readAsDataURL(file);
+      }
+    }
+
+    function onSizeChange(event) {
+      currentScaleFactor = parseFloat(event.target.value);
+      if (handModel) {
+        handModel.scale.set(maxScaleFactor * currentScaleFactor, maxScaleFactor * currentScaleFactor, maxScaleFactor * currentScaleFactor);
+      }
+    }
+
+    function animate() {
+      requestAnimationFrame(animate);
+      controls.update();
+      renderer.render(scene, camera);
+    }
+  </script>
+</body>
+</html>
