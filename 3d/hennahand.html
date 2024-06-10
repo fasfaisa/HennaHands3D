@@ -146,46 +146,27 @@
       camera.updateProjectionMatrix();
       renderer.setSize(window.innerWidth, window.innerHeight);
     }
-
-    function resizeImage(image, callback) {
-      const canvas = document.createElement('canvas');
-      const ctx = canvas.getContext('2d');
-      const maxWidth = image.width / 2;
-      const maxHeight = image.height / 2;
-      canvas.width = maxWidth;
-      canvas.height = maxHeight;
-      ctx.drawImage(image, 0, 0, maxWidth, maxHeight);
-      canvas.toBlob(callback, 'image/png');
-    }
-
     function onDesignUpload(event) {
-      const selectedPart = document.getElementById("objectSelector").value;
-      const file = event.target.files[0];
+  const selectedPart = document.getElementById("objectSelector").value;
+  const file = event.target.files[0];
 
-      if (file && objects[selectedPart]) {
-        const reader = new FileReader();
-        reader.onload = function (e) {
-          const img = new Image();
-          img.onload = function () {
-            resizeImage(img, function (blob) {
-              const url = URL.createObjectURL(blob);
-              const texture = new THREE.TextureLoader().load(url, function (texture) {
-                const material = objects[selectedPart].material.clone();
+  if (file && objects[selectedPart]) {
+    const reader = new FileReader();
+    reader.onload = function (e) {
+      const texture = new THREE.TextureLoader().load(e.target.result, function (texture) {
+        const material = objects[selectedPart].material.clone();
 
-                texture.wrapS = THREE.ClampToEdgeWrapping; // Adjust the texture wrapping
-                texture.wrapT = THREE.ClampToEdgeWrapping;
-                material.map = texture;
-                material.needsUpdate = true;
+        texture.wrapS = THREE.ClampToEdgeWrapping; // Adjust the texture wrapping
+        texture.wrapT = THREE.ClampToEdgeWrapping;
+        material.map = texture;
+        material.needsUpdate = true;
 
-                objects[selectedPart].material = material;
-              });
-            });
-          };
-          img.src = e.target.result;
-        };
-        reader.readAsDataURL(file);
-      }
-    }
+        objects[selectedPart].material = material;
+      });
+    };
+    reader.readAsDataURL(file);
+  }
+}
 
     function onSizeChange(event) {
       currentScaleFactor = parseFloat(event.target.value);
